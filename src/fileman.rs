@@ -154,4 +154,18 @@ impl FileMan {
 
         return Ok(lines);
     }
+
+    pub fn rename_ext(path: &str, new_ext: &str) -> String {
+        let split_path: Vec<&str> = path.split(".").collect();
+
+        // 拡張子がついていない場合は新しく付け足す
+        if split_path.len() < 2 {
+            return path.to_string() + "." + new_ext;
+        }
+
+        let old_ext_raw: Vec<&str> = split_path[split_path.len() - 1..split_path.len()].to_vec();
+        let old_ext = old_ext_raw.get(0).unwrap();
+
+        return path[0..path.len() - old_ext.len()].to_string() + new_ext;
+    }
 }

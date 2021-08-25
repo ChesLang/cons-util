@@ -1,8 +1,6 @@
 use crate::console;
 
-use std::io::BufRead;
-
-/* FileManError */
+use std::io::*;
 
 #[derive(Debug)]
 pub enum FileManError {
@@ -10,6 +8,7 @@ pub enum FileManError {
     DirReadFailure(String),
     FileNotOpenable(String),
     FileReadFailure(String),
+    FileWriteFailure(String),
     EnvVarReadFailure(String),
     InvalidPath(String),
     PathNotDirectory(String),
@@ -24,6 +23,7 @@ impl FileManError {
             FileManError::DirReadFailure(dir_path) => console::ConsoleLogData::new(console::ConsoleLogKind::Error, "{^file.err.5978}", vec![format!("{{^file.dir_path}}: {}", dir_path)], vec![format!("{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/5978/index.html")]),
             FileManError::FileNotOpenable(file_path) => console::ConsoleLogData::new(console::ConsoleLogKind::Error, "{^file.err.0117}", vec![format!("{{^file.file_path}}: {}", file_path)], vec![format!("{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/0117/index.html")]),
             FileManError::FileReadFailure(file_path) => console::ConsoleLogData::new(console::ConsoleLogKind::Error, "{^file.err.3995}", vec![format!("{{^file.file_path}}: {}", file_path)], vec![format!("{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/3995/index.html")]),
+            FileManError::FileWriteFailure(file_path) => console::ConsoleLogData::new(console::ConsoleLogKind::Error, "{^file.err.}", vec![format!("{{^file.file_path}}: {}", file_path)], vec![format!("{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error//index.html")]),
             FileManError::EnvVarReadFailure(env_name) => console::ConsoleLogData::new(console::ConsoleLogKind::Error, "{^file.err.9798}", vec![format!("{{^file.env_var_name}}: {}", env_name)], vec![format!("{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/9798/index.html")]),
             FileManError::InvalidPath(path) => console::ConsoleLogData::new(console::ConsoleLogKind::Error, "{^file.err.2711}", vec![format!("{{^file.file_path}}: {}", path)], vec![format!("{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/2711/index.html")]),
             FileManError::PathNotDirectory(path) => console::ConsoleLogData::new(console::ConsoleLogKind::Error, "{^file.err.0077}", vec![format!("{{^file.file_path}}: {}", path)], vec![format!("{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/0077/index.html")]),
@@ -40,8 +40,6 @@ impl std::fmt::Display for FileManError {
         return write!(f, "CommandError");
     }
 }
-
-/* FileMan */
 
 pub struct FileMan {}
 
@@ -167,5 +165,19 @@ impl FileMan {
         let old_ext = old_ext_raw.get(0).unwrap();
 
         return path[0..path.len() - old_ext.len()].to_string() + new_ext;
+    }
+
+    pub fn write_all_bytes(path: &str, bytes: &Vec<u8>) -> std::result::Result<(), FileManError> {
+        let mut file = match std::fs::File::create(path) {
+            Err(_e) => return Err(FileManError::FileNotOpenable(path.to_string())),
+            Ok(v) => v,
+        };
+
+        match file.write_all(bytes) {
+            Err(_e) => return Err(FileManError::FileWriteFailure(path.to_string())),
+            Ok(v) => v,
+        };
+
+        return Ok(());
     }
 }

@@ -1,25 +1,28 @@
 use crate::console;
 
-pub fn run_command(cmd_procs: std::collections::HashMap<String, fn(String, std::collections::HashMap::<String, Vec<String>>, &mut console::Console)>) {
+pub type CommandMap = std::collections::HashMap<String, fn(String, std::collections::HashMap::<String, Vec<String>>, &mut console::Console)>;
+
+pub fn run_command(default_cmd_name: &str, cmd_procs: CommandMap) {
     let mut cons = console::Console::new();
 
     match cons.load_langpack("en-us") {
         Ok(v) => v,
         Err(e) => {
             cons.log(e.get_log_data(), false);
-            panic!("{}", console::Console::get_terminate_msg());
+            return;
         }
     }
 
     let cmd_line_args: Vec<String> = std::env::args().collect();
 
-    let cmd = match Command::get_cmd_data(&cmd_line_args, "cmp") {
+    let cmd = match Command::get_cmd_data(&cmd_line_args, default_cmd_name) {
         Ok(v) => v,
         Err(e) => {
             for _i in 0..1 {
                 cons.log(e.get_log_data(), false);
             }
-            panic!("{}", console::Console::get_terminate_msg());
+
+            return;
         },
     };
 
@@ -32,7 +35,7 @@ pub fn run_command(cmd_procs: std::collections::HashMap<String, fn(String, std::
 
         if log_limit_vec.len() != 1 {
             cons.log(console::ConsoleLogData::new(console::ConsoleLogKind::Error, "{^cmd.err.7095}", vec![], vec![]), show_details);
-            panic!("{}", console::Console::get_terminate_msg());
+            return;
         }
 
         if log_limit_vec[0] == "no" {
@@ -42,7 +45,7 @@ pub fn run_command(cmd_procs: std::collections::HashMap<String, fn(String, std::
                 Ok(v) => v,
                 Err(_e) => {
                     cons.log(console::ConsoleLogData::new(console::ConsoleLogKind::Error, "{^cmd.err.7095}", vec![format!("{{^cmd.option_value}}: {}", log_limit_vec[0])], vec![]), show_details);
-                    panic!("{}", console::Console::get_terminate_msg());
+                    return;
                 },
             };
 
@@ -54,7 +57,7 @@ pub fn run_command(cmd_procs: std::collections::HashMap<String, fn(String, std::
         Ok(()) => (),
         Err(e) => {
             cons.log(e.get_log_data(), show_details);
-            panic!("{}", console::Console::get_terminate_msg());
+            return;
         },
     };
 }

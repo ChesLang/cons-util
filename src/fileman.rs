@@ -84,8 +84,8 @@ impl FileMan {
         }
     }
 
-    pub fn get_langpack_path(lang_name: &str) -> std::result::Result<String, FileManError> {
-        return Ok(FileMan::get_root_path()? + "/lib/lang/" + lang_name + ".lang");
+    pub fn get_langpack_path(rel_path: &str) -> std::result::Result<String, FileManError> {
+        return Ok(FileMan::get_root_path()? + "/" + rel_path);
     }
 
     pub fn is_dir(path: &str) -> bool {

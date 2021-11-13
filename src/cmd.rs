@@ -5,7 +5,7 @@ pub type CommandMap = std::collections::HashMap<String, fn(String, std::collecti
 pub fn run_command(default_cmd_name: &str, cmd_procs: CommandMap) {
     let mut cons = console::Console::new();
 
-    match cons.load_langpack("en-us") {
+    match cons.load_langpack("/Ches_1/rustnut/compiler/1.0.0/lib/lang/en-us.lang") {
         Ok(v) => v,
         Err(e) => {
             cons.log(e.get_log_data(), false);

@@ -86,10 +86,10 @@ impl Console {
         return translated_text;
     }
 
-    pub fn load_langpack(&mut self, lang_name: &str) -> std::result::Result<(), fileman::FileManError> {
+    pub fn load_langpack(&mut self, rel_path: &str) -> std::result::Result<(), fileman::FileManError> {
         self.lang_pack_props = std::collections::HashMap::new();
 
-        let path = fileman::FileMan::get_langpack_path(lang_name)?;
+        let path = fileman::FileMan::get_langpack_path(rel_path)?;
         let lines = fileman::FileMan::read_lines(&path)?;
 
         for mut each_line in lines {

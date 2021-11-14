@@ -7,10 +7,16 @@ pub struct Langpack {
 }
 
 impl Langpack {
-    pub fn load(rel_path: &String) -> Result<Langpack, FileManError> {
+    pub fn get_empty() -> Langpack {
+        return Langpack {
+            props: HashMap::new(),
+        }
+    }
+
+    pub fn load(rel_path: String) -> Result<Langpack, FileManError> {
         let mut props = HashMap::new();
 
-        let path = FileMan::get_langpack_path(rel_path)?;
+        let path = FileMan::get_langpack_path(&rel_path)?;
         let lines = FileMan::read_lines(&path)?;
 
         for mut each_line in lines {
@@ -37,14 +43,14 @@ impl Langpack {
     pub fn translate(&self, text: &String) -> String {
         let regex = regex::Regex::new(r"\{\^[a-zA-Z0-9\._-]+\}").unwrap();
         let matched_iter = regex.find_iter(text);
-        let mut translated_text = String::new();
+        let mut translated_text = text.clone();
 
         for matched in matched_iter {
             let matched_str = matched.as_str();
             let prop_name = &matched_str[2..matched_str.len() - 1];
 
             match self.props.get(prop_name) {
-                Some(v) => translated_text = translated_text.replace(matched_str, &self.props[prop_name]),
+                Some(v) => translated_text = translated_text.replace(matched_str, v),
                 None => (),
             }
         }

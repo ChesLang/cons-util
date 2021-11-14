@@ -3,12 +3,20 @@ use crate::langpack::*;
 
 #[macro_export]
 macro_rules! log {
+    ($kind:ident, $title:expr) => {
+        {
+            let kind = ConsoleLogKind::$kind;
+            let title = $title.to_string();
+            let descs = Vec::<ConsoleLogDescription>::new();
+            ConsoleLog::new(kind, title, descs)
+        }
+    };
+
     ($kind:ident, $title:expr, $($desc:expr), *) => {
         {
             let kind = ConsoleLogKind::$kind;
             let title = $title.to_string();
-            let mut descs = vec![$($desc,)*];
-
+            let descs = vec![$($desc.to_string(),)*];
             ConsoleLog::new(kind, title, ConsoleLogDescription::to_vec(descs))
         }
     };
@@ -52,17 +60,17 @@ pub enum ConsoleLogDescription {
 impl ConsoleLogDescription {
     pub fn reverse_kind(&self) -> ConsoleLogDescription {
         match self {
-            ConsoleLogDescription::Normal(msg) => ConsoleLogDescription::Optional(*msg),
-            ConsoleLogDescription::Optional(msg) => ConsoleLogDescription::Normal(*msg),
+            ConsoleLogDescription::Normal(msg) => ConsoleLogDescription::Optional(msg.clone()),
+            ConsoleLogDescription::Optional(msg) => ConsoleLogDescription::Normal(msg.clone()),
         }
     }
 
     pub fn to_vec(descs: Vec<String>) -> Vec<ConsoleLogDescription> {
         return descs.iter().map(|s| {
             if !s.starts_with("?") {
-                ConsoleLogDescription::Normal(*s)
+                ConsoleLogDescription::Normal(s.clone())
             } else {
-                ConsoleLogDescription::Optional(*s)
+                ConsoleLogDescription::Optional(s.clone())
             }
         }).collect::<Vec<ConsoleLogDescription>>();
     }
@@ -91,9 +99,13 @@ pub struct Console {
 }
 
 impl Console {
-    pub fn load(rel_langpack_path: &String) -> Result<Console, FileManError> {
+    // note: rel_langpack_path が None であれば言語パックを読み込まない
+    pub fn load(rel_langpack_path: Option<String>) -> Result<Console, FileManError> {
         let cons = Console {
-            langpack: Langpack::load(rel_langpack_path)?,
+            langpack: match rel_langpack_path {
+                Some(v) => Langpack::load(v)?,
+                None => Langpack::get_empty(),
+            },
             log_limit: 20,
             log_count: 0,
         };
@@ -114,7 +126,7 @@ impl Console {
             if self.log_limit <= self.log_count {
                 let tmp_log_limit = self.log_limit;
                 self.log_limit = -1;
-                self.log(ConsoleLog::new(ConsoleLogKind::Notice, "{^console.note.4768}".to_string(), vec![format!("{{^console.log_limit}}: {}", tmp_log_limit)]), false);
+                self.log(log!(Notice, "{^console.note.4768}", format!("{{^console.log_limit}}: {}", tmp_log_limit)), false);
                 self.log_limit = tmp_log_limit;
                 return;
             }
@@ -123,7 +135,7 @@ impl Console {
         let title_color = log.kind.get_log_color_num();
         let kind_name = log.kind.get_log_kind_name();
 
-        println!("\x1b[{}m[{}]\x1b[m {}", title_color, self.langpack.translate(&kind_name), self.langpack.translate(&log.title));
+        println!("\x1b[{}m[{}]\x1b[m {}", title_color, kind_name, self.langpack.translate(&log.title));
 
         for each_desc in &log.descs {
             match each_desc {
@@ -137,7 +149,7 @@ impl Console {
         self.log_count += 1;
 
         if show_details {
-            let reverse_descs = Vec::<ConsoleLogDescription>::new();
+            let mut reverse_descs = Vec::<ConsoleLogDescription>::new();
 
             for each_desc in &log.descs {
                 reverse_descs.push(each_desc.reverse_kind());

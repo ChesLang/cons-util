@@ -1,4 +1,5 @@
-use crate::console;
+use crate::*;
+use crate::console::*;
 
 use std::io::*;
 
@@ -17,18 +18,18 @@ pub enum FileManError {
 }
 
 impl FileManError {
-    pub fn get_log_data(&self) -> console::ConsoleLogData {
+    pub fn get_log_data(&self) -> ConsoleLog {
         match self {
-            FileManError::CurrDirReadFailure() => console::ConsoleLogData::new(console::ConsoleLogKind::Error, "{^file.err.1069}", vec![], vec![format!("{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/1069/index.html")]),
-            FileManError::DirReadFailure(dir_path) => console::ConsoleLogData::new(console::ConsoleLogKind::Error, "{^file.err.5978}", vec![format!("{{^file.dir_path}}: {}", dir_path)], vec![format!("{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/5978/index.html")]),
-            FileManError::FileNotOpenable(file_path) => console::ConsoleLogData::new(console::ConsoleLogKind::Error, "{^file.err.0117}", vec![format!("{{^file.file_path}}: {}", file_path)], vec![format!("{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/0117/index.html")]),
-            FileManError::FileReadFailure(file_path) => console::ConsoleLogData::new(console::ConsoleLogKind::Error, "{^file.err.3995}", vec![format!("{{^file.file_path}}: {}", file_path)], vec![format!("{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/3995/index.html")]),
-            FileManError::FileWriteFailure(file_path) => console::ConsoleLogData::new(console::ConsoleLogKind::Error, "{^file.err.}", vec![format!("{{^file.file_path}}: {}", file_path)], vec![format!("{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error//index.html")]),
-            FileManError::EnvVarReadFailure(env_name) => console::ConsoleLogData::new(console::ConsoleLogKind::Error, "{^file.err.9798}", vec![format!("{{^file.env_var_name}}: {}", env_name)], vec![format!("{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/9798/index.html")]),
-            FileManError::InvalidPath(path) => console::ConsoleLogData::new(console::ConsoleLogKind::Error, "{^file.err.2711}", vec![format!("{{^file.file_path}}: {}", path)], vec![format!("{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/2711/index.html")]),
-            FileManError::PathNotDirectory(path) => console::ConsoleLogData::new(console::ConsoleLogKind::Error, "{^file.err.0077}", vec![format!("{{^file.file_path}}: {}", path)], vec![format!("{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/0077/index.html")]),
-            FileManError::PathNotExists(path) => console::ConsoleLogData::new(console::ConsoleLogKind::Error, "{^file.err.8531}", vec![format!("{{^file.file_path}}: {}", path)], vec![format!("{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/8531/index.html")]),
-            FileManError::PathNotFile(path) => console::ConsoleLogData::new(console::ConsoleLogKind::Error, "{^file.err.2160}", vec![format!("{{^file.file_path}}: {}", path)], vec![format!("{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/2160/index.html")]),
+            FileManError::CurrDirReadFailure() => log!(Error, "{^file.err.1069}", format!("?{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/1069/index.html")),
+            FileManError::DirReadFailure(dir_path) => log!(Error, "{^file.err.5978}", format!("{{^file.dir_path}}: {}", dir_path), format!("?{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/5978/index.html")),
+            FileManError::FileNotOpenable(file_path) => log!(Error, "{^file.err.0117}", format!("{{^file.file_path}}: {}", file_path), format!("?{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/0117/index.html")),
+            FileManError::FileReadFailure(file_path) => log!(Error, "{^file.err.3995}", format!("{{^file.file_path}}: {}", file_path), format!("?{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/3995/index.html")),
+            FileManError::FileWriteFailure(file_path) => log!(Error, "{^file.err.}", format!("{{^file.file_path}}: {}", file_path), format!("?{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error//index.html")),
+            FileManError::EnvVarReadFailure(env_name) => log!(Error, "{^file.err.9798}", format!("{{^file.env_var_name}}: {}", env_name), format!("{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/9798/index.html")),
+            FileManError::InvalidPath(path) => log!(Error, "{^file.err.2711}", format!("{{^file.file_path}}: {}", path), format!("?{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/2711/index.html")),
+            FileManError::PathNotDirectory(path) => log!(Error, "{^file.err.0077}", format!("{{^file.file_path}}: {}", path), format!("?{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/0077/index.html")),
+            FileManError::PathNotExists(path) => log!(Error, "{^file.err.8531}", format!("{{^file.file_path}}: {}", path), format!("?{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/8531/index.html")),
+            FileManError::PathNotFile(path) => log!(Error, "{^file.err.2160}", format!("{{^file.file_path}}: {}", path), format!("?{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/2160/index.html")),
         }
     }
 }

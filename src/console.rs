@@ -1,6 +1,22 @@
-use crate::fileman;
+use crate::fileman::*;
+use crate::langpack::*;
 
-/* ConsoleLogKind */
+#[macro_export]
+macro_rules! log {
+    ($kind:ident, $title:expr, $($desc:expr), *) => {
+        {
+            let kind = ConsoleLogKind::$kind;
+            let title = $title.to_string();
+            let mut descs = vec![$($desc,)*];
+
+            ConsoleLog::new(kind, title, ConsoleLogDescription::to_vec(descs))
+        }
+    };
+}
+
+pub trait ConsoleLogger {
+    fn get_log(&self) -> ConsoleLog;
+}
 
 pub enum ConsoleLogKind {
     Error,
@@ -8,108 +24,88 @@ pub enum ConsoleLogKind {
     Notice,
 }
 
-/* ConsoleLogData */
+impl ConsoleLogKind {
+    fn get_log_color_num(&self) -> usize {
+        return match self {
+            ConsoleLogKind::Error => 31,
+            ConsoleLogKind::Warning => 33,
+            ConsoleLogKind::Notice => 34,
+        };
+    }
 
-pub struct ConsoleLogData {
-    kind: ConsoleLogKind,
-    title: String,
-    desc: Vec<String>,
-    details: Vec<String>,
+    fn get_log_kind_name(&self) -> String {
+        let s = match self {
+            ConsoleLogKind::Error => "err",
+            ConsoleLogKind::Warning => "warn",
+            ConsoleLogKind::Notice => "note",
+        };
+
+        return s.to_string();
+    }
 }
 
-impl ConsoleLogData {
-    pub fn new(kind: ConsoleLogKind, title: &str, desc: Vec<String>, details: Vec<String>) -> Self {
-        return ConsoleLogData {
+pub enum ConsoleLogDescription {
+    Normal(String),
+    Optional(String),
+}
+
+impl ConsoleLogDescription {
+    pub fn reverse_kind(&self) -> ConsoleLogDescription {
+        match self {
+            ConsoleLogDescription::Normal(msg) => ConsoleLogDescription::Optional(*msg),
+            ConsoleLogDescription::Optional(msg) => ConsoleLogDescription::Normal(*msg),
+        }
+    }
+
+    pub fn to_vec(descs: Vec<String>) -> Vec<ConsoleLogDescription> {
+        return descs.iter().map(|s| {
+            if !s.starts_with("?") {
+                ConsoleLogDescription::Normal(*s)
+            } else {
+                ConsoleLogDescription::Optional(*s)
+            }
+        }).collect::<Vec<ConsoleLogDescription>>();
+    }
+}
+
+pub struct ConsoleLog {
+    kind: ConsoleLogKind,
+    title: String,
+    descs: Vec<ConsoleLogDescription>,
+}
+
+impl ConsoleLog {
+    pub fn new(kind: ConsoleLogKind, title: String, descs: Vec<ConsoleLogDescription>) -> ConsoleLog {
+        return ConsoleLog {
             kind: kind,
-            title: title.to_string(),
-            desc: desc,
-            details: details,
+            title: title,
+            descs: descs,
         };
     }
 }
 
-/* Console */
-
 pub struct Console {
-    lang_pack_props: std::collections::HashMap<String, String>,
-
-    pub log_limit: i32,
+    langpack: Langpack,
+    log_limit: i32,
     log_count: i32,
 }
 
 impl Console {
-    pub fn new() -> Self {
-        return Console {
-            lang_pack_props: std::collections::HashMap::new(),
+    pub fn load(rel_langpack_path: &String) -> Result<Console, FileManError> {
+        let cons = Console {
+            langpack: Langpack::load(rel_langpack_path)?,
             log_limit: 20,
             log_count: 0,
         };
+
+        return Ok(cons);
     }
 
-    fn get_log_color(kind: &ConsoleLogKind) -> &'static str {
-        return match kind {
-            ConsoleLogKind::Error => "31",
-            ConsoleLogKind::Warning => "33",
-            ConsoleLogKind::Notice => "34",
-        };
+    pub fn get_terminate_msg() -> String {
+        return "Program was aborted with error.".to_string();
     }
 
-    fn get_log_kind_name(kind: &ConsoleLogKind) -> String {
-        return match kind {
-            ConsoleLogKind::Error => "err".to_string(),
-            ConsoleLogKind::Warning => "warn".to_string(),
-            ConsoleLogKind::Notice => "note".to_string(),
-        };
-    }
-
-    pub fn get_terminate_msg() -> &'static str {
-        return "Program was aborted with error.";
-    }
-
-    fn get_translated_text(&self, text: &str) -> String {
-        let regex = regex::Regex::new(r"\{\^[a-zA-Z0-9\._-]+\}").unwrap();
-        let matched_iter = regex.find_iter(text);
-
-        let mut translated_text = text.to_string();
-
-        for matched in matched_iter {
-            let matched_str = matched.as_str();
-            let prop_name = &matched_str[2..matched_str.len() - 1];
-
-            if !self.lang_pack_props.contains_key(prop_name) {
-                continue;
-            }
-
-            translated_text = translated_text.replace(matched_str, &self.lang_pack_props[prop_name]);
-        }
-
-        return translated_text;
-    }
-
-    pub fn load_langpack(&mut self, rel_path: &str) -> std::result::Result<(), fileman::FileManError> {
-        self.lang_pack_props = std::collections::HashMap::new();
-
-        let path = fileman::FileMan::get_langpack_path(rel_path)?;
-        let lines = fileman::FileMan::read_lines(&path)?;
-
-        for mut each_line in lines {
-            if each_line.contains(' ') {
-                let tokens: Vec<&str> = each_line.split(' ').collect();
-                let prop_name = tokens[0];
-                let prop_name_len = prop_name.len();
-
-                if prop_name_len == 0 {
-                    continue;
-                }
-
-                self.lang_pack_props.insert(prop_name.to_string(), each_line.split_off(prop_name_len + 1).to_string());
-            }
-        }
-
-        return Ok(());
-    }
-
-    pub fn log(&mut self, data: ConsoleLogData, show_details: bool) {
+    pub fn log(&mut self, log: ConsoleLog, show_details: bool) {
         if self.log_limit != -1 {
             if self.log_limit < self.log_count {
                 return;
@@ -118,19 +114,22 @@ impl Console {
             if self.log_limit <= self.log_count {
                 let tmp_log_limit = self.log_limit;
                 self.log_limit = -1;
-                self.log(ConsoleLogData::new(ConsoleLogKind::Notice, "{^console.note.4768}", vec![format!("{{^console.log_limit}}: {}", tmp_log_limit)], vec![]), false);
+                self.log(ConsoleLog::new(ConsoleLogKind::Notice, "{^console.note.4768}".to_string(), vec![format!("{{^console.log_limit}}: {}", tmp_log_limit)]), false);
                 self.log_limit = tmp_log_limit;
                 return;
             }
         }
 
-        let title_color = Console::get_log_color(&data.kind);
-        let kind_name = Console::get_log_kind_name(&data.kind);
+        let title_color = log.kind.get_log_color_num();
+        let kind_name = log.kind.get_log_kind_name();
 
-        println!("\x1b[{}m[{}]\x1b[m {}", title_color, self.get_translated_text(&kind_name), self.get_translated_text(&data.title));
+        println!("\x1b[{}m[{}]\x1b[m {}", title_color, self.langpack.translate(&kind_name), self.langpack.translate(&log.title));
 
-        for desc_line in &data.desc {
-            println!("\t{}", self.get_translated_text(&desc_line));
+        for each_desc in &log.descs {
+            match each_desc {
+                ConsoleLogDescription::Normal(msg) => println!("\t{}", self.langpack.translate(msg)),
+                _ => (),
+            }
         }
 
         println!();
@@ -138,7 +137,13 @@ impl Console {
         self.log_count += 1;
 
         if show_details {
-            self.log(ConsoleLogData::new(ConsoleLogKind::Notice, "{^cmd.note.5720}", data.details, vec![]), false);
+            let reverse_descs = Vec::<ConsoleLogDescription>::new();
+
+            for each_desc in &log.descs {
+                reverse_descs.push(each_desc.reverse_kind());
+            }
+
+            self.log(ConsoleLog::new(ConsoleLogKind::Notice, "{^cmd.note.5720}".to_string(), reverse_descs), false);
         }
     }
 }

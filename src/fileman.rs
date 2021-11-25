@@ -17,8 +17,8 @@ pub enum FileManError {
     PathNotExists(String),
 }
 
-impl FileManError {
-    pub fn get_log_data(&self) -> ConsoleLog {
+impl ConsoleLogger for FileManError {
+    fn get_log(&self) -> ConsoleLog {
         match self {
             FileManError::CurrDirReadFailure() => log!(Error, "{^file.err.1069}", format!("?{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/1069/index.html")),
             FileManError::DirReadFailure(dir_path) => log!(Error, "{^file.err.5978}", format!("{{^file.dir_path}}: {}", dir_path), format!("?{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/5978/index.html")),
@@ -31,14 +31,6 @@ impl FileManError {
             FileManError::PathNotExists(path) => log!(Error, "{^file.err.8531}", format!("{{^file.file_path}}: {}", path), format!("?{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/8531/index.html")),
             FileManError::PathNotFile(path) => log!(Error, "{^file.err.2160}", format!("{{^file.file_path}}: {}", path), format!("?{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/2160/index.html")),
         }
-    }
-}
-
-impl std::error::Error for FileManError {}
-
-impl std::fmt::Display for FileManError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        return write!(f, "CommandError");
     }
 }
 

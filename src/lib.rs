@@ -1,3 +1,3 @@
 pub mod console;
-pub mod fileman;
+pub mod file;
 pub mod langpack;

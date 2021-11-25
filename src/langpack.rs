@@ -1,6 +1,6 @@
 use std::collections::*;
 
-use crate::fileman::*;
+use crate::file::*;
 
 pub struct Langpack {
     props: HashMap<String, String>,
@@ -13,7 +13,7 @@ impl Langpack {
         }
     }
 
-    pub fn load(rel_path: String) -> Result<Langpack, FileManError> {
+    pub fn load(rel_path: String) -> Result<Langpack, FileError> {
         let mut props = HashMap::new();
 
         let path = FileMan::get_langpack_path(&rel_path)?;

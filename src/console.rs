@@ -1,4 +1,4 @@
-use crate::fileman::*;
+use crate::file::*;
 use crate::langpack::*;
 
 #[macro_export]
@@ -100,7 +100,7 @@ pub struct Console {
 
 impl Console {
     // note: rel_langpack_path が None であれば言語パックを読み込まない
-    pub fn load(rel_langpack_path: Option<String>) -> Result<Console, FileManError> {
+    pub fn load(rel_langpack_path: Option<String>) -> Result<Console, FileError> {
         let cons = Console {
             langpack: match rel_langpack_path {
                 Some(v) => Langpack::load(v)?,

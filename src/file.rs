@@ -2,6 +2,9 @@ use crate::*;
 use crate::console::*;
 
 use std::io::*;
+use std::result::Result;
+
+pub type FileResult<T> = Result<T, FileError>;
 
 #[derive(Debug)]
 pub enum FileError {
@@ -61,24 +64,11 @@ impl FileMan {
             None => return Ok(None),
         };
 
-        println!("{}", parent_path.to_str().unwrap().to_string());
-        println!("{}", parent_path.to_str().unwrap().to_string());
-        println!("{}", parent_path.to_str().unwrap().to_string());
+        println!("{}", parent_path.to_str().unwrap());
+        println!("{}", parent_path.to_str().unwrap());
+        println!("{}", parent_path.to_str().unwrap());
 
         return Ok(Some(std::boxed::Box::from(parent_path)));
-    }
-
-    pub fn get_root_path() -> std::result::Result<String, FileError> {
-        let env_var_name = "CHES_HOME";
-
-        return match std::env::var(env_var_name) {
-            Ok(v) => Ok(v),
-            Err(_) => Err(FileError::EnvironmentVariableReadFailure { var_name: env_var_name.to_string() }),
-        };
-    }
-
-    pub fn get_langpack_path(rel_path: &str) -> std::result::Result<String, FileError> {
-        return Ok(FileMan::get_root_path()? + "/" + rel_path);
     }
 
     pub fn is_dir(path: &str) -> bool {
@@ -118,6 +108,41 @@ impl FileMan {
         };
 
         return Ok(content);
+    }
+
+    pub fn read_all_bytes(path: &str) -> std::result::Result<Vec<u8>, FileError> {
+        if !FileMan::exists(&path) {
+            return Err(FileError::PathNotExists { path: path.to_string() });
+        }
+
+        if FileMan::is_dir(&path) {
+            return Err(FileError::PathNotFile { path: path.to_string() });
+        }
+
+        let mut reader = match std::fs::File::open(path) {
+            Ok(v) => BufReader::new(v),
+            Err(_) => return Err(FileError::FileOpenFailure { file_path: path.to_string() }),
+        };
+
+        let mut bytes = Vec::<u8>::new();
+        let mut buf = [0; 4];
+
+        loop {
+            match reader.read(&mut buf) {
+                Ok(v) => {
+                    match v {
+                        0 => break,
+                        n => {
+                            let buf = &buf[..n];
+                            bytes.append(&mut buf.to_vec());
+                        }
+                    }
+                },
+                Err(_) => return Err(FileError::FileReadFailure { file_path: path.to_string() }),
+            }
+        }
+
+        return Ok(bytes);
     }
 
     pub fn read_lines(path: &str) -> std::result::Result<Vec<String>, FileError> {

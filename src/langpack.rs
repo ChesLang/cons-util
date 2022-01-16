@@ -13,15 +13,14 @@ impl Langpack {
         }
     }
 
-    pub fn load(rel_path: String) -> Result<Langpack, FileError> {
-        let mut props = HashMap::new();
+    pub fn load(lang_file_path: &str) -> Result<Langpack, FileError> {
+        let mut props = HashMap::<String, String>::new();
 
-        let path = FileMan::get_langpack_path(&rel_path)?;
-        let lines = FileMan::read_lines(&path)?;
+        let lines = FileMan::read_lines(lang_file_path)?;
 
         for mut each_line in lines {
             if each_line.contains(' ') {
-                let tokens: Vec<&str> = each_line.split(' ').collect();
+                let tokens = each_line.split(' ').collect::<Vec<&str>>();
                 let prop_name = tokens[0];
                 let prop_name_len = prop_name.len();
 
@@ -29,7 +28,7 @@ impl Langpack {
                     continue;
                 }
 
-                props.insert(prop_name.to_string(), each_line.split_off(prop_name_len + 1).to_string());
+                props.insert(prop_name.to_string(), each_line.split_off(prop_name_len + 1));
             }
         }
 

@@ -1,5 +1,9 @@
+use std::fmt::{Display, Formatter};
+
 use crate::file::*;
 use crate::langpack::*;
+
+pub type ConsoleResult<T> = Result<T, ()>;
 
 #[macro_export]
 macro_rules! log {
@@ -92,46 +96,72 @@ impl ConsoleLog {
     }
 }
 
+pub enum ConsoleLogLimit {
+    NoLimit,
+    Limited(usize),
+}
+
+impl Display for ConsoleLogLimit {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            ConsoleLogLimit::NoLimit => "[no limit]".to_string(),
+            ConsoleLogLimit::Limited(limit_count) => limit_count.to_string(),
+        };
+
+        return write!(f, "{}", s);
+    }
+}
+
 pub struct Console {
     langpack: Langpack,
-    log_limit: i32,
-    log_count: i32,
+    log_list: Vec<ConsoleLog>,
+    log_limit: ConsoleLogLimit,
 }
 
 impl Console {
-    // note: rel_langpack_path が None であれば言語パックを読み込まない
-    pub fn load(rel_langpack_path: Option<String>) -> Result<Console, FileError> {
+    // note: lang_file_path が None であれば言語パックを読み込まない
+    pub fn load(lang_file_path: Option<String>, log_limit: ConsoleLogLimit) -> Result<Console, FileError> {
         let cons = Console {
-            langpack: match rel_langpack_path {
-                Some(v) => Langpack::load(v)?,
+            langpack: match lang_file_path {
+                Some(v) => Langpack::load(&v)?,
                 None => Langpack::get_empty(),
             },
-            log_limit: 20,
-            log_count: 0,
+            log_list: Vec::new(),
+            log_limit: log_limit,
         };
 
         return Ok(cons);
+    }
+
+    pub fn append_log(&mut self, log: ConsoleLog) {
+        self.log_list.push(log);
     }
 
     pub fn get_terminate_msg() -> String {
         return "Program was aborted with error.".to_string();
     }
 
-    pub fn log(&mut self, log: ConsoleLog, show_details: bool) {
-        if self.log_limit != -1 {
-            if self.log_limit < self.log_count {
-                return;
+    pub fn print_all(&self) {
+        // note: ログ数制限のチェック
+        let limit_num = match &self.log_limit {
+            ConsoleLogLimit::NoLimit => -1i32,
+            ConsoleLogLimit::Limited(v) => *v as i32,
+        };
+
+        let mut log_count = 0;
+
+        for each_log in &self.log_list {
+            if limit_num != -1 && log_count + 1 > limit_num as i32 {
+                self.print(&log!(Notice, "{^console.note.4768}", format!("{{^console.log_limit}}: {}", self.log_limit)));
+                break;
             }
 
-            if self.log_limit <= self.log_count {
-                let tmp_log_limit = self.log_limit;
-                self.log_limit = -1;
-                self.log(log!(Notice, "{^console.note.4768}", format!("{{^console.log_limit}}: {}", tmp_log_limit)), false);
-                self.log_limit = tmp_log_limit;
-                return;
-            }
+            self.print(each_log);
+            log_count += 1;
         }
+    }
 
+    pub fn print(&self, log: &ConsoleLog) {
         let title_color = log.kind.get_log_color_num();
         let kind_name = log.kind.get_log_kind_name();
 
@@ -145,17 +175,5 @@ impl Console {
         }
 
         println!();
-
-        self.log_count += 1;
-
-        if show_details {
-            let mut reverse_descs = Vec::<ConsoleLogDescription>::new();
-
-            for each_desc in &log.descs {
-                reverse_descs.push(each_desc.reverse_kind());
-            }
-
-            self.log(ConsoleLog::new(ConsoleLogKind::Notice, "{^cmd.note.5720}".to_string(), reverse_descs), false);
-        }
     }
 }

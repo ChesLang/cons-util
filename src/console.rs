@@ -116,6 +116,7 @@ pub struct Console {
     langpack: Langpack,
     log_list: Vec<ConsoleLog>,
     log_limit: ConsoleLogLimit,
+    pub ignore_logs: bool,
 }
 
 impl Console {
@@ -128,13 +129,16 @@ impl Console {
             },
             log_list: Vec::new(),
             log_limit: log_limit,
+            ignore_logs: false,
         };
 
         return Ok(cons);
     }
 
     pub fn append_log(&mut self, log: ConsoleLog) {
-        self.log_list.push(log);
+        if !self.ignore_logs {
+            self.log_list.push(log);
+        }
     }
 
     pub fn get_terminate_msg() -> String {

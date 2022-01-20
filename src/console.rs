@@ -33,7 +33,7 @@ pub trait ConsoleLogger {
 pub enum ConsoleLogKind {
     Error,
     Warning,
-    Notice,
+    Note,
 }
 
 impl ConsoleLogKind {
@@ -41,7 +41,7 @@ impl ConsoleLogKind {
         return match self {
             ConsoleLogKind::Error => 31,
             ConsoleLogKind::Warning => 33,
-            ConsoleLogKind::Notice => 34,
+            ConsoleLogKind::Note => 34,
         };
     }
 
@@ -49,7 +49,7 @@ impl ConsoleLogKind {
         let s = match self {
             ConsoleLogKind::Error => "err",
             ConsoleLogKind::Warning => "warn",
-            ConsoleLogKind::Notice => "note",
+            ConsoleLogKind::Note => "note",
         };
 
         return s.to_string();
@@ -135,9 +135,19 @@ impl Console {
         return Ok(cons);
     }
 
+    pub fn clear_log(&mut self) {
+        self.log_list.clear();
+    }
+
     pub fn append_log(&mut self, log: ConsoleLog) {
         if !self.ignore_logs {
             self.log_list.push(log);
+        }
+    }
+
+    pub fn pop_log(&mut self) {
+        if self.log_list.len() > 0 {
+            self.log_list.pop();
         }
     }
 
@@ -156,7 +166,7 @@ impl Console {
 
         for each_log in &self.log_list {
             if limit_num != -1 && log_count + 1 > limit_num as i32 {
-                self.print(&log!(Notice, "{^console.note.4768}", format!("{{^console.log_limit}}: {}", self.log_limit)));
+                self.print(&log!(Note, "{^console.note.4768}", format!("{{^console.log_limit}}: {}", self.log_limit)));
                 break;
             }
 

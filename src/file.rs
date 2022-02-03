@@ -1,12 +1,14 @@
 use crate::*;
 use crate::console::*;
 
+use std::fs::*;
 use std::io::*;
+use std::time::SystemTime;
 use std::result::Result;
 
 pub type FileResult<T> = Result<T, FileError>;
 
-#[derive(Debug)]
+#[derive(Clone, PartialEq)]
 pub enum FileError {
     CurrentDirectoryReadFailure {},
     DirectoryReadFailure { dir_path: String },
@@ -15,6 +17,7 @@ pub enum FileError {
     FileWriteFailure { file_path: String },
     EnvironmentVariableReadFailure { var_name: String },
     InvalidPath { path: String },
+    MetadataReadFailure { path: String },
     PathNotDirectory { path: String },
     PathNotExists { path: String },
     PathNotFile { path: String },
@@ -30,6 +33,7 @@ impl ConsoleLogger for FileError {
             FileError::FileWriteFailure { file_path } => log!(Error, "{^file.err.}", format!("{{^file.file_path}}: {}", file_path), format!("?{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error//index.html")),
             FileError::EnvironmentVariableReadFailure { var_name } => log!(Error, "{^file.err.9798}", format!("{{^file.env_var_name}}: {}", var_name), format!("{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/9798/index.html")),
             FileError::InvalidPath { path } => log!(Error, "{^file.err.2711}", format!("{{^file.file_path}}: {}", path), format!("?{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/2711/index.html")),
+            FileError::MetadataReadFailure { path } => log!(Error, "metadata read failure", format!("{{^file.path}}: {}", path)),
             FileError::PathNotDirectory { path } => log!(Error, "{^file.err.0077}", format!("{{^file.file_path}}: {}", path), format!("?{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/0077/index.html")),
             FileError::PathNotExists { path } => log!(Error, "{^file.err.8531}", format!("{{^file.file_path}}: {}", path), format!("?{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/8531/index.html")),
             FileError::PathNotFile { path } => log!(Error, "{^file.err.2160}", format!("{{^file.file_path}}: {}", path), format!("?{{^console.spec_link}}: https://ches.gant.work/en/spec/console/file/error/2160/index.html")),
@@ -52,6 +56,22 @@ impl FileMan {
         };
 
         return Ok(std::boxed::Box::from(curr_dir_path_obj.join(rel_path_obj)));
+    }
+
+    pub fn get_last_modified(path: &str) -> Result<SystemTime, FileError> {
+        return match metadata(path) {
+            Ok(metadata) => {
+                match metadata.modified() {
+                    Ok(time) => Ok(time),
+                    Err(_) => Err(FileError::MetadataReadFailure {
+                        path: path.to_string(),
+                    }),
+                }
+            },
+            Err(_) => Err(FileError::MetadataReadFailure {
+                path: path.to_string(),
+            }),
+        };
     }
 
     pub fn get_parent_dir_path(path: &str) -> std::result::Result<std::option::Option<std::boxed::Box<std::path::Path>>, FileError> {

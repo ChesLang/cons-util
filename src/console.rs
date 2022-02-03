@@ -135,14 +135,14 @@ impl Console {
         return Ok(cons);
     }
 
-    pub fn clear_log(&mut self) {
-        self.log_list.clear();
-    }
-
     pub fn append_log(&mut self, log: ConsoleLog) {
         if !self.ignore_logs {
             self.log_list.push(log);
         }
+    }
+
+    pub fn clear(&mut self) {
+        self.log_list.clear();
     }
 
     pub fn pop_log(&mut self) {

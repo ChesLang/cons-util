@@ -26,7 +26,7 @@ macro_rules! log {
     };
 }
 
-pub trait ConsoleLogger {
+pub trait ConsoleLogger: Clone + PartialEq {
     fn get_log(&self) -> ConsoleLog;
 }
 

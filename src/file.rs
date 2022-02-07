@@ -1,5 +1,5 @@
 use crate::*;
-use crate::console::*;
+use crate::cons::*;
 
 use std::fs::*;
 use std::io::*;

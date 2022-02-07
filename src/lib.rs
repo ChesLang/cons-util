@@ -1,7 +1,7 @@
-pub mod console;
+pub mod cons;
 pub mod file;
 
-use crate::console::*;
+use crate::cons::*;
 
 enum InternalLanguage {
     English,

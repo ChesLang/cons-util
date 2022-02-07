@@ -1,27 +1,35 @@
-use std::fmt::{Display, Formatter};
+use crate::*;
 
-use crate::file::*;
-use crate::langpack::*;
+use std::fmt::{Display, Formatter};
 
 pub type ConsoleResult<T> = Result<T, ()>;
 
 #[macro_export]
 macro_rules! log {
-    ($kind:ident, $title:expr) => {
+    ($kind:ident, $title:expr $(, $desc:expr)*) => {
         {
-            let kind = ConsoleLogKind::$kind;
-            let title = $title.to_string();
-            let descs = Vec::<ConsoleLogDescription>::new();
-            ConsoleLog::new(kind, title, descs)
+            ConsoleLog {
+                kind: ConsoleLogKind::$kind,
+                title: Box::new($title),
+                descs: vec![
+                    $(Box::new($desc),)*
+                ]
+            }
         }
     };
+}
 
-    ($kind:ident, $title:expr, $($desc:expr), *) => {
-        {
-            let kind = ConsoleLogKind::$kind;
-            let title = $title.to_string();
-            let descs = vec![$($desc.to_string(),)*];
-            ConsoleLog::new(kind, title, ConsoleLogDescription::to_vec(descs))
+#[macro_export]
+macro_rules! translate {
+    (translator => $log:expr, lang => $lang:expr, $($log_key:pat => {$($lang_key:pat => $value:expr,)*},)*) => {
+        match $log {
+            $(
+                $log_key => {
+                    match $lang {
+                        $($lang_key => $value.to_string(),)+
+                    }
+                },
+            )+
         }
     };
 }
@@ -30,6 +38,11 @@ pub trait ConsoleLogger: Clone + PartialEq {
     fn get_log(&self) -> ConsoleLog;
 }
 
+pub trait ConsoleLogTranslator: Send {
+    fn translate(&self, lang_name: &str) -> String;
+}
+
+#[derive(Clone, PartialEq)]
 pub enum ConsoleLogKind {
     Error,
     Warning,
@@ -56,46 +69,13 @@ impl ConsoleLogKind {
     }
 }
 
-pub enum ConsoleLogDescription {
-    Normal(String),
-    Optional(String),
-}
-
-impl ConsoleLogDescription {
-    pub fn reverse_kind(&self) -> ConsoleLogDescription {
-        match self {
-            ConsoleLogDescription::Normal(msg) => ConsoleLogDescription::Optional(msg.clone()),
-            ConsoleLogDescription::Optional(msg) => ConsoleLogDescription::Normal(msg.clone()),
-        }
-    }
-
-    pub fn to_vec(descs: Vec<String>) -> Vec<ConsoleLogDescription> {
-        return descs.iter().map(|s| {
-            if !s.starts_with("?") {
-                ConsoleLogDescription::Normal(s.clone())
-            } else {
-                ConsoleLogDescription::Optional(s.clone())
-            }
-        }).collect::<Vec<ConsoleLogDescription>>();
-    }
-}
-
 pub struct ConsoleLog {
-    kind: ConsoleLogKind,
-    title: String,
-    descs: Vec<ConsoleLogDescription>,
+    pub kind: ConsoleLogKind,
+    pub title: Box<dyn ConsoleLogTranslator>,
+    pub descs: Vec<Box<dyn ConsoleLogTranslator>>,
 }
 
-impl ConsoleLog {
-    pub fn new(kind: ConsoleLogKind, title: String, descs: Vec<ConsoleLogDescription>) -> ConsoleLog {
-        return ConsoleLog {
-            kind: kind,
-            title: title,
-            descs: descs,
-        };
-    }
-}
-
+#[derive(Clone, PartialEq)]
 pub enum ConsoleLogLimit {
     NoLimit,
     Limited(usize),
@@ -113,26 +93,20 @@ impl Display for ConsoleLogLimit {
 }
 
 pub struct Console {
-    langpack: Langpack,
+    lang: String,
     log_list: Vec<ConsoleLog>,
     log_limit: ConsoleLogLimit,
     pub ignore_logs: bool,
 }
 
 impl Console {
-    // note: lang_file_path が None であれば言語パックを読み込まない
-    pub fn load(lang_file_path: Option<String>, log_limit: ConsoleLogLimit) -> Result<Console, FileError> {
-        let cons = Console {
-            langpack: match lang_file_path {
-                Some(v) => Langpack::load(&v)?,
-                None => Langpack::get_empty(),
-            },
+    pub fn new(lang: String, log_limit: ConsoleLogLimit) -> Console {
+        return Console {
+            lang: lang,
             log_list: Vec::new(),
             log_limit: log_limit,
             ignore_logs: false,
         };
-
-        return Ok(cons);
     }
 
     pub fn append_log(&mut self, log: ConsoleLog) {
@@ -151,10 +125,6 @@ impl Console {
         }
     }
 
-    pub fn get_terminate_msg() -> String {
-        return "Program was aborted with error.".to_string();
-    }
-
     pub fn print_all(&self) {
         // note: ログ数制限のチェック
         let limit_num = match &self.log_limit {
@@ -166,7 +136,7 @@ impl Console {
 
         for each_log in &self.log_list {
             if limit_num != -1 && log_count + 1 > limit_num as i32 {
-                self.print(&log!(Note, "{^console.note.4768}", format!("{{^console.log_limit}}: {}", self.log_limit)));
+                self.print(&log!(Note, InternalTranslator::LogLimitExceeded { log_limit: self.log_limit.clone() }));
                 break;
             }
 
@@ -179,13 +149,10 @@ impl Console {
         let title_color = log.kind.get_log_color_num();
         let kind_name = log.kind.get_log_kind_name();
 
-        println!("\x1b[{}m[{}]\x1b[m {}", title_color, kind_name, self.langpack.translate(&log.title));
+        println!("\x1b[{}m[{}]\x1b[m {}", title_color, kind_name, log.title.translate(&self.lang));
 
         for each_desc in &log.descs {
-            match each_desc {
-                ConsoleLogDescription::Normal(msg) => println!("\t{}", self.langpack.translate(msg)),
-                _ => (),
-            }
+            println!("{}", each_desc.translate(&self.lang))
         }
 
         println!();

@@ -1,6 +1,7 @@
 use crate::*;
 use crate::cons::*;
 
+use std::env::current_dir;
 use std::fs::*;
 use std::io::*;
 use std::path::Path;
@@ -42,18 +43,18 @@ pub struct FileMan {}
 
 impl FileMan {
     pub fn exists(path: &str) -> bool {
-        return std::path::Path::new(path).exists();
+        return Path::new(path).exists();
     }
 
     pub fn abs(rel_path: &str) -> FileManResult<Box<Path>> {
-        let rel_path_obj = std::path::Path::new(rel_path);
+        let rel_path_obj = Path::new(rel_path);
 
-        let curr_dir_path_obj = match std::env::current_dir() {
+        let curr_dir_path_obj = match current_dir() {
             Ok(v) => v,
             Err(_) => return Err(FileManLog::FailedToGetCurrentDirectory {}),
         };
 
-        return Ok(std::boxed::Box::from(curr_dir_path_obj.join(rel_path_obj)));
+        return Ok(Box::from(curr_dir_path_obj.join(rel_path_obj)));
     }
 
     pub fn last_modified(path: &str) -> FileManResult<SystemTime> {
@@ -81,16 +82,16 @@ impl FileMan {
             return Err(FileManLog::PathDoesNotExist { path: path.to_string() });
         }
 
-        let parent_path = match std::path::Path::new(path).parent() {
+        let parent_path = match Path::new(path).parent() {
             Some(v) => v,
             None => return Ok(None),
         };
 
-        return Ok(Some(std::boxed::Box::from(parent_path)));
+        return Ok(Some(Box::from(parent_path)));
     }
 
     pub fn is_dir(path: &str) -> bool {
-        return std::path::Path::new(path).is_dir();
+        return Path::new(path).is_dir();
     }
 
     pub fn is_same(path1: &str, path2: &str) -> FileManResult<bool> {
@@ -101,12 +102,12 @@ impl FileMan {
     }
 
     pub fn join_path(orig_path: &str, rel_path: &str) -> FileManResult<Box<Path>> {
-        let orig_path_obj = std::path::Path::new(orig_path);
-        let rel_path_obj = std::path::Path::new(rel_path);
+        let orig_path_obj = Path::new(orig_path);
+        let rel_path_obj = Path::new(rel_path);
         let joined_path_obj = orig_path_obj.join(rel_path_obj);
 
         return match joined_path_obj.canonicalize() {
-            Ok(v) => Ok(std::boxed::Box::from(v)),
+            Ok(v) => Ok(Box::from(v)),
             Err(_) => Err(FileManLog::FailedToOpenFileOrDirectory { path: joined_path_obj.to_str().unwrap().to_string() }),
         };
     }
@@ -137,7 +138,7 @@ impl FileMan {
             return Err(FileManLog::ExpectedFilePathNotDirectoryPath { path: path.to_string() });
         }
 
-        let mut reader = match std::fs::File::open(path) {
+        let mut reader = match File::open(path) {
             Ok(v) => BufReader::new(v),
             Err(_) => return Err(FileManLog::FailedToOpenFile { path: path.to_string() }),
         };
@@ -172,14 +173,14 @@ impl FileMan {
             return Err(FileManLog::ExpectedFilePathNotDirectoryPath { path: path.to_string() });
         }
 
-        let reader = match std::fs::File::open(path) {
+        let reader = match File::open(path) {
             Ok(v) => v,
             Err(_) => return Err(FileManLog::FailedToOpenFile { path: path.to_string() }),
         };
 
         let mut lines = Vec::<String>::new();
 
-        for each_line in std::io::BufReader::new(reader).lines() {
+        for each_line in BufReader::new(reader).lines() {
             lines.push(match each_line {
                 Ok(v) => v,
                 Err(_) => return Err(FileManLog::FailedToReadFile { path: path.to_string() }),
@@ -204,7 +205,7 @@ impl FileMan {
     }
 
     pub fn write_all_bytes(path: &str, bytes: &Vec<u8>) -> FileManResult<()> {
-        let mut file = match std::fs::File::create(path) {
+        let mut file = match File::create(path) {
             Err(_) => return Err(FileManLog::FailedToOpenFile { path: path.to_string() }),
             Ok(v) => v,
         };

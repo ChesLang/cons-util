@@ -37,13 +37,13 @@ enum InternalTranslator {
 }
 
 impl ConsoleLogTranslator for InternalTranslator {
-    fn translate(&self, lang_name: &str) -> String {
+    fn translate(&self, lang_name: &str) -> TranslationResult {
         let lang = match InternalLanguage::from(lang_name) {
             Some(v) => v,
-            None => return "{unknown language}".to_string(),
+            None => return TranslationResult::UnknownLanguage,
         };
 
-        return translate!{
+        let s = translate!{
             translator => self,
             lang => lang,
             // note: log titles
@@ -89,5 +89,7 @@ impl ConsoleLogTranslator for InternalTranslator {
                 InternalLanguage::Japanese => format!("パス:\t{}", path),
             },
         };
+
+        return TranslationResult::Success(s);
     }
 }

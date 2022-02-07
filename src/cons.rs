@@ -38,8 +38,14 @@ pub trait ConsoleLogger: Clone + PartialEq {
     fn get_log(&self) -> ConsoleLog;
 }
 
+#[derive(Clone, PartialEq)]
+pub enum TranslationResult {
+    Success(String),
+    UnknownLanguage
+}
+
 pub trait ConsoleLogTranslator: Send {
-    fn translate(&self, lang_name: &str) -> String;
+    fn translate(&self, lang_name: &str) -> TranslationResult;
 }
 
 #[derive(Clone, PartialEq)]
@@ -149,12 +155,39 @@ impl Console {
         let title_color = log.kind.get_log_color_num();
         let kind_name = log.kind.get_log_kind_name();
 
-        println!("\x1b[{}m[{}]\x1b[m {}", title_color, kind_name, log.title.translate(&self.lang));
+        let title = match log.title.translate(&self.lang) {
+            TranslationResult::Success(v) => v,
+            TranslationResult::UnknownLanguage => {
+                Console::print_unknown_language_log();
+                println!();
+                return;
+            },
+        };
 
-        for each_desc in &log.descs {
-            println!("{}", each_desc.translate(&self.lang))
+        Console::print_title(title_color, kind_name, title);
+
+        for each_desc_result in &log.descs {
+            let each_desc = match each_desc_result.translate(&self.lang) {
+                TranslationResult::Success(v) => v,
+                TranslationResult::UnknownLanguage => {
+                    Console::print_unknown_language_log();
+                    println!();
+                    return;
+                },
+            };
+
+            println!("{}", each_desc);
         }
 
         println!();
+    }
+
+    fn print_unknown_language_log() {
+        let err_log_kind = ConsoleLogKind::Error;
+        Console::print_title(err_log_kind.get_log_color_num(), err_log_kind.get_log_kind_name(), "unknown language".to_string());
+    }
+
+    fn print_title(color: usize, kind: String, title: String) {
+        println!("\x1b[{}m[{}]\x1b[m {}", color, kind, title);
     }
 }

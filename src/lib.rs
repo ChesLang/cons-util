@@ -22,20 +22,17 @@ impl InternalLanguage {
 
 #[derive(Clone, PartialEq)]
 enum InternalTranslator {
-            // note: log titles
-    ExpectedDirectoryPathNotFilePath,
+    // note: log titles
     ExpectedFilePathNotDirectoryPath,
     FailedToGetCurrentDirectory,
-    FailedToGetEnvironmentVariable,
-    FailedToOpenDirectory,
     FailedToOpenFile,
     FailedToOpenFileOrDirectory,
     FailedToReadFile,
     FailedToWriteFile,
     LogLimitExceeded { log_limit: ConsoleLogLimit },
+    MetadataIsNotAvailableOnThisPlatform,
     PathDoesNotExist,
     // note: descriptions
-    NameDescription { name: String },
     PathDescription { path: String },
 }
 
@@ -50,10 +47,6 @@ impl ConsoleLogTranslator for InternalTranslator {
             translator => self,
             lang => lang,
             // note: log titles
-            InternalTranslator::ExpectedDirectoryPathNotFilePath => {
-                InternalLanguage::English => "expected directory path not file path",
-                InternalLanguage::Japanese => "ファイルパスでなくディレクトリパスが必要です",
-            },
             InternalTranslator::ExpectedFilePathNotDirectoryPath => {
                 InternalLanguage::English => "expected file path not directory path",
                 InternalLanguage::Japanese => "ディレクトリパスでなくファイルパスが必要です",
@@ -61,14 +54,6 @@ impl ConsoleLogTranslator for InternalTranslator {
             InternalTranslator::FailedToGetCurrentDirectory => {
                 InternalLanguage::English => "failed to get current directory",
                 InternalLanguage::Japanese => "カレントディレクトリの取得に失敗しました",
-            },
-            InternalTranslator::FailedToGetEnvironmentVariable => {
-                InternalLanguage::English => "failed to get environment variable",
-                InternalLanguage::Japanese => "環境変数の取得に失敗しました",
-            },
-            InternalTranslator::FailedToOpenDirectory => {
-                InternalLanguage::English => "failed to open directory",
-                InternalLanguage::Japanese => "ディレクトリのオープンに失敗しました",
             },
             InternalTranslator::FailedToOpenFile => {
                 InternalLanguage::English => "failed to open file",
@@ -90,15 +75,15 @@ impl ConsoleLogTranslator for InternalTranslator {
                 InternalLanguage::English => format!("log limit {} exceeded", log_limit),
                 InternalLanguage::Japanese => format!("ログ制限 {} を超過しました", log_limit),
             },
+            InternalTranslator::MetadataIsNotAvailableOnThisPlatform => {
+                InternalLanguage::English => "metadata is not available on this platform",
+                InternalLanguage::Japanese => "このプラットフォームでは属性が利用できません",
+            },
             InternalTranslator::PathDoesNotExist => {
                 InternalLanguage::English => "path does not exist",
                 InternalLanguage::Japanese => "パスが存在しません",
             },
             // note: descriptions
-            InternalTranslator::NameDescription { name } => {
-                InternalLanguage::English => format!("name:\n{}", name),
-                InternalLanguage::Japanese => format!("名前:\n{}", name),
-            },
             InternalTranslator::PathDescription { path } => {
                 InternalLanguage::English => format!("path:\t{}", path),
                 InternalLanguage::Japanese => format!("パス:\t{}", path),

@@ -11,32 +11,28 @@ pub type FileManResult<T> = Result<T, FileManLog>;
 
 #[derive(Clone, PartialEq)]
 pub enum FileManLog {
-    ExpectedDirectoryPathNotFilePath { path: String },
     ExpectedFilePathNotDirectoryPath { path: String },
     FailedToGetCurrentDirectory,
-    FailedToGetEnvironmentVariable { var_name: String },
-    FailedToOpenDirectory { path: String },
     FailedToOpenFile { path: String },
     FailedToOpenFileOrDirectory { path: String },
     FailedToReadFile { path: String },
     FailedToWriteFile { path: String },
     LogLimitExceeded { log_limit: ConsoleLogLimit },
+    MetadataIsNotAvailableOnThisPlatform { path: String },
     PathDoesNotExist { path: String },
 }
 
 impl ConsoleLogger for FileManLog {
     fn get_log(&self) -> ConsoleLog {
         match self {
-            FileManLog::ExpectedDirectoryPathNotFilePath { path } => log!(Error, InternalTranslator::ExpectedDirectoryPathNotFilePath, InternalTranslator::PathDescription { path: path.clone() }),
             FileManLog::ExpectedFilePathNotDirectoryPath { path } => log!(Error, InternalTranslator::ExpectedFilePathNotDirectoryPath, InternalTranslator::PathDescription { path: path.clone() }),
             FileManLog::FailedToGetCurrentDirectory => log!(Error, InternalTranslator::FailedToGetCurrentDirectory),
-            FileManLog::FailedToGetEnvironmentVariable { var_name } => log!(Error, InternalTranslator::FailedToGetEnvironmentVariable, InternalTranslator::NameDescription { name: var_name.clone() }),
-            FileManLog::FailedToOpenDirectory { path } => log!(Error, InternalTranslator::FailedToOpenDirectory, InternalTranslator::PathDescription { path: path.clone() }),
             FileManLog::FailedToOpenFile { path } => log!(Error, InternalTranslator::FailedToOpenFile, InternalTranslator::PathDescription { path: path.clone() }),
             FileManLog::FailedToOpenFileOrDirectory { path } => log!(Error, InternalTranslator::FailedToOpenFileOrDirectory, InternalTranslator::PathDescription { path: path.clone() }),
             FileManLog::FailedToReadFile { path } => log!(Error, InternalTranslator::FailedToReadFile, InternalTranslator::PathDescription { path: path.clone() }),
             FileManLog::FailedToWriteFile { path } => log!(Error, InternalTranslator::FailedToWriteFile, InternalTranslator::PathDescription { path: path.clone() }),
             FileManLog::LogLimitExceeded { log_limit } => log!(Error, InternalTranslator::LogLimitExceeded { log_limit: log_limit.clone() }),
+            FileManLog::MetadataIsNotAvailableOnThisPlatform { path } => log!(Error, InternalTranslator::MetadataIsNotAvailableOnThisPlatform, InternalTranslator::PathDescription { path: path.clone() }),
             FileManLog::PathDoesNotExist { path } => log!(Error, InternalTranslator::PathDoesNotExist, InternalTranslator::PathDescription { path: path.clone() }),
         }
     }
@@ -49,7 +45,7 @@ impl FileMan {
         return std::path::Path::new(path).exists();
     }
 
-    pub fn get_abs_path(rel_path: &str) -> FileManResult<Box<Path>> {
+    pub fn abs(rel_path: &str) -> FileManResult<Box<Path>> {
         let rel_path_obj = std::path::Path::new(rel_path);
 
         let curr_dir_path_obj = match std::env::current_dir() {
@@ -60,23 +56,27 @@ impl FileMan {
         return Ok(std::boxed::Box::from(curr_dir_path_obj.join(rel_path_obj)));
     }
 
-    pub fn get_last_modified(path: &str) -> FileManResult<SystemTime> {
+    pub fn last_modified(path: &str) -> FileManResult<SystemTime> {
+        let metadata = FileMan::metadata(path)?;
+
+        return match metadata.modified() {
+            Ok(time) => Ok(time),
+            Err(_) => Err(FileManLog::MetadataIsNotAvailableOnThisPlatform {
+                path: path.to_string(),
+            }),
+        };
+    }
+
+    pub fn metadata(path: &str) -> FileManResult<Metadata> {
         return match metadata(path) {
-            Ok(metadata) => {
-                match metadata.modified() {
-                    Ok(time) => Ok(time),
-                    Err(_) => Err(FileManLog::FailedToOpenFileOrDirectory {
-                        path: path.to_string(),
-                    }),
-                }
-            },
+            Ok(v) => Ok(v),
             Err(_) => Err(FileManLog::FailedToOpenFileOrDirectory {
                 path: path.to_string(),
             }),
         };
     }
 
-    pub fn get_parent_dir_path(path: &str) -> FileManResult<Option<Box<Path>>> {
+    pub fn parent_dir(path: &str) -> FileManResult<Option<Box<Path>>> {
         if !FileMan::exists(path) {
             return Err(FileManLog::PathDoesNotExist { path: path.to_string() });
         }
@@ -117,7 +117,7 @@ impl FileMan {
         }
 
         if FileMan::is_dir(&path) {
-            return Err(FileManLog::PathDoesNotExist { path: path.to_string() });
+            return Err(FileManLog::ExpectedFilePathNotDirectoryPath { path: path.to_string() });
         }
 
         let content = match std::fs::read_to_string(path) {
@@ -134,7 +134,7 @@ impl FileMan {
         }
 
         if FileMan::is_dir(&path) {
-            return Err(FileManLog::PathDoesNotExist { path: path.to_string() });
+            return Err(FileManLog::ExpectedFilePathNotDirectoryPath { path: path.to_string() });
         }
 
         let mut reader = match std::fs::File::open(path) {
@@ -156,7 +156,7 @@ impl FileMan {
                         }
                     }
                 },
-                Err(_) => return Err(FileManLog::FailedToOpenFile { path: path.to_string() }),
+                Err(_) => return Err(FileManLog::FailedToReadFile { path: path.to_string() }),
             }
         }
 
@@ -169,7 +169,7 @@ impl FileMan {
         }
 
         if FileMan::is_dir(&path) {
-            return Err(FileManLog::PathDoesNotExist { path: path.to_string() });
+            return Err(FileManLog::ExpectedFilePathNotDirectoryPath { path: path.to_string() });
         }
 
         let reader = match std::fs::File::open(path) {
@@ -182,14 +182,14 @@ impl FileMan {
         for each_line in std::io::BufReader::new(reader).lines() {
             lines.push(match each_line {
                 Ok(v) => v,
-                Err(_) => return Err(FileManLog::FailedToOpenFile { path: path.to_string() }),
+                Err(_) => return Err(FileManLog::FailedToReadFile { path: path.to_string() }),
             });
         }
 
         return Ok(lines);
     }
 
-    pub fn rename_ext(path: &str, new_ext: &str) -> String {
+    pub fn reext(path: &str, new_ext: &str) -> String {
         let split_path: Vec<&str> = path.split(".").collect();
 
         // 拡張子がついていない場合は新しく付け足す

@@ -42,10 +42,6 @@ impl ConsoleLogger for FileManLog {
 pub struct FileMan {}
 
 impl FileMan {
-    pub fn exists(path: &str) -> bool {
-        return Path::new(path).exists();
-    }
-
     pub fn abs(rel_path: &str) -> FileManResult<Box<Path>> {
         let rel_path_obj = Path::new(rel_path);
 
@@ -55,6 +51,32 @@ impl FileMan {
         };
 
         return Ok(Box::from(curr_dir_path_obj.join(rel_path_obj)));
+    }
+
+    pub fn exists(path: &str) -> bool {
+        return Path::new(path).exists();
+    }
+
+    pub fn is_dir(path: &str) -> bool {
+        return Path::new(path).is_dir();
+    }
+
+    pub fn is_same(path1: &str, path2: &str) -> FileManResult<bool> {
+        return match same_file::is_same_file(path1, path2) {
+            Ok(v) => Ok(v),
+            Err(_) => Err(FileManLog::FailedToOpenFileOrDirectory { path: format!("{}; {}", path1, path2) }),
+        };
+    }
+
+    pub fn join_path(orig_path: &str, rel_path: &str) -> FileManResult<Box<Path>> {
+        let orig_path_obj = Path::new(orig_path);
+        let rel_path_obj = Path::new(rel_path);
+        let joined_path_obj = orig_path_obj.join(rel_path_obj);
+
+        return match joined_path_obj.canonicalize() {
+            Ok(v) => Ok(Box::from(v)),
+            Err(_) => Err(FileManLog::FailedToOpenFileOrDirectory { path: joined_path_obj.to_str().unwrap().to_string() }),
+        };
     }
 
     pub fn last_modified(path: &str) -> FileManResult<SystemTime> {
@@ -88,28 +110,6 @@ impl FileMan {
         };
 
         return Ok(Some(Box::from(parent_path)));
-    }
-
-    pub fn is_dir(path: &str) -> bool {
-        return Path::new(path).is_dir();
-    }
-
-    pub fn is_same(path1: &str, path2: &str) -> FileManResult<bool> {
-        return match same_file::is_same_file(path1, path2) {
-            Ok(v) => Ok(v),
-            Err(_) => Err(FileManLog::FailedToOpenFileOrDirectory { path: format!("{}; {}", path1, path2) }),
-        };
-    }
-
-    pub fn join_path(orig_path: &str, rel_path: &str) -> FileManResult<Box<Path>> {
-        let orig_path_obj = Path::new(orig_path);
-        let rel_path_obj = Path::new(rel_path);
-        let joined_path_obj = orig_path_obj.join(rel_path_obj);
-
-        return match joined_path_obj.canonicalize() {
-            Ok(v) => Ok(Box::from(v)),
-            Err(_) => Err(FileManLog::FailedToOpenFileOrDirectory { path: joined_path_obj.to_str().unwrap().to_string() }),
-        };
     }
 
     pub fn read_all(path: &str) -> FileManResult<String> {

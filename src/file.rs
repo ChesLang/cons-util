@@ -10,7 +10,7 @@ use std::result::Result;
 
 pub type FileManResult<T> = Result<T, FileManLog>;
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum FileManLog {
     ExpectedFilePathNotDirectoryPath { path: String },
     FailedToGetCurrentDirectory,
@@ -202,6 +202,20 @@ impl FileMan {
         let old_ext = old_ext_raw.get(0).unwrap();
 
         return path[0..path.len() - old_ext.len()].to_string() + new_ext;
+    }
+
+    pub fn write_all(path: &str, content: &String) -> FileManResult<()> {
+        let mut file = match File::create(path) {
+            Err(_) => return Err(FileManLog::FailedToOpenFile { path: path.to_string() }),
+            Ok(v) => v,
+        };
+
+        match file.write_all(content.as_bytes()) {
+            Err(_) => return Err(FileManLog::FailedToWriteFile { path: path.to_string() }),
+            Ok(v) => v,
+        };
+
+        return Ok(());
     }
 
     pub fn write_all_bytes(path: &str, bytes: &Vec<u8>) -> FileManResult<()> {

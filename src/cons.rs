@@ -81,7 +81,7 @@ pub struct ConsoleLog {
     pub descs: Vec<Box<dyn ConsoleLogTranslator>>,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ConsoleLogLimit {
     NoLimit,
     Limited(usize),

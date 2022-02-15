@@ -1,4 +1,5 @@
 use crate::*;
+use crate::file::{FileMan, FileManResult};
 
 use std::fmt::{Display, Formatter};
 
@@ -81,6 +82,27 @@ pub struct ConsoleLog {
     pub descs: Vec<Box<dyn ConsoleLogTranslator>>,
 }
 
+#[derive(Clone, PartialEq)]
+pub enum LogFileKind {
+    TextLines(Vec<String>),
+    ConsoleLogs,
+}
+
+#[derive(Clone, PartialEq)]
+pub struct LogFile {
+    kind: LogFileKind,
+    output_path: String,
+}
+
+impl LogFile {
+    pub fn new(kind: LogFileKind, output_path: String) -> LogFile {
+        return LogFile {
+            kind: kind,
+            output_path: output_path,
+        };
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum ConsoleLogLimit {
     NoLimit,
@@ -131,7 +153,35 @@ impl Console {
         }
     }
 
-    pub fn print_all(&self) {
+    pub fn output(&self, log_files: Vec<LogFile>) {
+        let mut cons_log_lines = Vec::<String>::new();
+        self.print_all(&mut cons_log_lines);
+
+        match self.write_all(log_files, cons_log_lines) {
+            Ok(()) => (),
+            Err(_) => println!("{}", Console::format_log_file_writing_failure_log()),
+        };
+    }
+
+    fn write_all(&self, log_files: Vec<LogFile>, cons_log_lines: Vec<String>) -> FileManResult<()> {
+        for each_file_log in log_files {
+            let lines = match &each_file_log.kind {
+                LogFileKind::TextLines(lines) => {
+                    lines
+                },
+                LogFileKind::ConsoleLogs => {
+                    &cons_log_lines
+                },
+            };
+
+            // fix: -> write_lines()
+            FileMan::write_all(&each_file_log.output_path, &lines.join("\n"))?;
+        }
+
+        return Ok(());
+    }
+
+    fn print_all(&self, log_lines: &mut Vec<String>) {
         // note: ログ数制限のチェック
         let limit_num = match &self.log_limit {
             ConsoleLogLimit::NoLimit => -1i32,
@@ -142,52 +192,64 @@ impl Console {
 
         for each_log in &self.log_list {
             if limit_num != -1 && log_count + 1 > limit_num as i32 {
-                self.print(&log!(Note, InternalTranslator::LogLimitExceeded { log_limit: self.log_limit.clone() }));
+                self.print(&log!(Note, InternalTranslator::LogLimitExceeded { log_limit: self.log_limit.clone() }), &mut Vec::new());
                 break;
             }
 
-            self.print(each_log);
+            self.print(each_log, log_lines);
             log_count += 1;
         }
     }
 
-    pub fn print(&self, log: &ConsoleLog) {
+    fn print(&self, log: &ConsoleLog, log_lines: &mut Vec<String>) {
         let title_color = log.kind.get_log_color_num();
         let kind_name = log.kind.get_log_kind_name();
 
         let title = match log.title.translate(&self.lang) {
             TranslationResult::Success(v) => v,
             TranslationResult::UnknownLanguage => {
-                Console::print_unknown_language_log();
+                println!("{}", Console::format_unknown_language_log());
                 println!();
                 return;
             },
         };
 
-        Console::print_title(title_color, kind_name, title);
+        println!("{}", Console::format_title(Some(title_color), &kind_name, &title));
+        log_lines.push(Console::format_title(None, &kind_name, &title));
 
         for each_desc_result in &log.descs {
             let each_desc = match each_desc_result.translate(&self.lang) {
                 TranslationResult::Success(v) => v,
                 TranslationResult::UnknownLanguage => {
-                    Console::print_unknown_language_log();
+                    println!("{}", Console::format_unknown_language_log());
                     println!();
                     return;
                 },
             };
 
             println!("{}", each_desc);
+            log_lines.push(each_desc);
         }
 
         println!();
     }
 
-    fn print_unknown_language_log() {
+    fn format_unknown_language_log() -> String {
         let err_log_kind = ConsoleLogKind::Error;
-        Console::print_title(err_log_kind.get_log_color_num(), err_log_kind.get_log_kind_name(), "unknown language".to_string());
+        return Console::format_title(Some(err_log_kind.get_log_color_num()), &err_log_kind.get_log_kind_name(), "unknown language");
     }
 
-    fn print_title(color: usize, kind: String, title: String) {
-        println!("\x1b[{}m[{}]\x1b[m {}", color, kind, title);
+    fn format_log_file_writing_failure_log() -> String {
+        let err_log_kind = ConsoleLogKind::Error;
+        return Console::format_title(Some(err_log_kind.get_log_color_num()), &err_log_kind.get_log_kind_name(), "log file writing failure");
+    }
+
+    fn format_title(color: Option<usize>, kind: &str, title: &str) -> String {
+        let (color_begin, color_end) = match color {
+            Some(v) => (format!("\x1b[{}m", v), "\x1b[m".to_string()),
+            None => (String::new(), String::new()),
+        };
+
+        return format!("{}[{}]{} {}", color_begin, kind, color_end, title);
     }
 }

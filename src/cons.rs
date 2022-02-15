@@ -166,12 +166,8 @@ impl Console {
     fn write_all(&self, log_files: Vec<LogFile>, cons_log_lines: Vec<String>) -> FileManResult<()> {
         for each_file_log in log_files {
             let lines = match &each_file_log.kind {
-                LogFileKind::TextLines(lines) => {
-                    lines
-                },
-                LogFileKind::ConsoleLogs => {
-                    &cons_log_lines
-                },
+                LogFileKind::TextLines(lines) => lines,
+                LogFileKind::ConsoleLogs => &cons_log_lines,
             };
 
             // fix: -> write_lines()
@@ -232,6 +228,7 @@ impl Console {
         }
 
         println!();
+        log_lines.push(String::new());
     }
 
     fn format_unknown_language_log() -> String {
